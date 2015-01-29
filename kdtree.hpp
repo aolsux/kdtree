@@ -90,6 +90,12 @@ public:
     // he can provide a NodeExtension class with the traits.
     // the NodeBase class constructor will get the boundingbox of the node and the iterator range
     // for the data that will be contained within this node
+    // a possibility would also be to store a user defined node specific data type, but with inheritance,
+    // we allow the compiler to use empty base class optimization, resulting in zero overhead if the Node specific
+    // data type is independent.
+    // maybe we can clarify this by using private inheritance and a node data getter that returns a cast of this to
+    // user data type (see specific commented lines)
+    // struct Node : private Nodebase
     struct Node : public NodeBase
     {
         // defines the iterator range of data that is contained within this node an all of its children
@@ -109,6 +115,8 @@ public:
             _data_begin(db),
             _data_end(de)
             {}
+            
+        // const NodeBase& user_data() const { return static_cast<const NodeBase*>(this);}
 
         // each node splits space with a hyperplance that is perpendicular to its splitting dimension
         // hence, the hyperplane is completly defined by the index of the dimension that is split
