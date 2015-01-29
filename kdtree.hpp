@@ -171,10 +171,13 @@ public:
     // access the tree for searching and other stuff
     Node& root();
 
-    // iterate overall nodes
+    // iterate overall nodes, the order is given by the internal order of the node container,
+    // i.e. first node will be the root, then the left subtree will be iterated (recursively)
+    // last the right subtree will be iterated
     boost::iterator_range<> nodes() const;
 
-    // iterate over data
+    // iterate over data the order is again defined by the tree structure,
+    // the left most data elements are first, then the leafes are iterated towards the rightmost leaf of the tree
     boost::iterator_range<> data() const;
 
 
