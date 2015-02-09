@@ -1,70 +1,74 @@
 #pragma once
 
+#include <type_traits>
 #include <list>
 #include <vector>
+
 
 
 struct Splitter /*concept*/
 {
     // split the given bounding box
     // given bounding box will then be the lower part, and the returned bounding box will be the upper part
-    BoundingBox split(BoundingBox& bb, Points& points /* maybe it would also be usefull to give the last dimension that has been split*/);
+    template<class real>
+    BoundingBox split(BoundingBox<real>& bb, Points& points /* maybe it would also be usefull to give the last dimension that has been split*/);
 
 };
 
-struct kdtreetraits /*concept*/
+/*!
+ * \brief Implementation of Splitter concept
+ * Subdivide each cell into two equally sized cells, while rotating the dimension of the splitting hyperplance
+ */
+struct RotatingSubdivision
 {
-
-    // the type of data that is stored within the tree
-    typedef void value_type;
-
-    // the (scalar) numeric type used for coordinates that define the location of data in space
-    typedef void real_type;
-
-    // the type of the splitter to be used for splitting cells
-    typedef void Splitter;
-
-    // a functor that is capable to receive the Nth coordinate associated with a value_type
-    // i.e. its singature is supposed to be one of the following:
-    //      const real_type& operator()(const value_type& item, std::size_t dim) const
-    // or.
-    //      real_type operator()(const value_type& item, std::size_t dim) const
-    // alternatively, because the dimensionality of the space also needs to be defined
-    //      iterator_range operator()(const value_type& item) const
-    // then, one can use
-    //      std::distance(range.begin(), range.end())
-    // to get dimensionality of the points and
-    //      *(range + n)
-    // to access nth coordinate
-    typedef void Coordinate;
-
-    // the linear storage type to be used for the data within the tree
-    // WHY do we need Container as template parameter to the algorithm?
-    // Answer, some value_types (e.g. Eigen's static size matrices) need aligned allocation.
-    // Hence special care for storing those items is required.
-    typedef void Container; //TODO: should this be a template? because in the end we probably use Container<value_type> or container<Node<value_type>>
-
-    // generate a splitter object
-    Splitter splitter_object();
-
-    // generate coordinate getter
-    Coordinate coordinate_object();
+    // we can access the points contained in node via the nodes iterator
+    // it is assumed, that the node is not yet split
+    // we need to get information about the splitting of the nodes parent
+    template<class BoundingBox, class Node>
+    void split(BoundingBox& bb, const Node& node)
+    {
+        // the dimension that is to be split
+        std::size_t d = (node.parent().spitting_dimension() + 1) % bb.dimension();
+        // the location of the hyperplane TODO use correct coordinate type
+        double c = bb.lower[d] + (bb.upper[d]-bb.lower[d]) / 2.;
+        // or return Seperator(d,c);
+        return std::make_tuple(d,c);
+    }
 };
 
-// a default model that implements the traits concept
-class DefaultkdtreeTraits
+/*!
+ * \brief Provide default interface for value_type to coordinate transformation
+ */
+struct DefaultA
 {
+    // deduce the real type of the coordinates, strip all possible references and consts
+//     typedef typename std::remove_const<typename std::remove_reference<decltype(std::declval<const V&>().operator[](0))>::type>::type real;
+
+    // access the i.th dimension of the coordinate of v
+    template<class V>
+    auto operator()(const V& v, std::size_t t) const -> decltype(v[i]) { return v[i];}
+
+    // get the dimension of space v is located within
+    // TODO: because we assert that all points live in the same space, this should always evaluate to the same value
+    // and is hence somewhat redundant, maybe it would be better to give the dimension to the tree uppon construction?!?
+    template<class V>
+    std::size_t size(const V& v)               const { return v.size();}
 };
 
 
-// TODO: do we want to combine all template parameters within the traits class, or provide a long list of seperate template parameters
-template<class Traits>
+/*!
+ * \tparam V the value type that is to be sorted into the tree
+ * \tparam S the splitting rule for subdivision of nodes
+ * \tparam A an object that is capable to obtain coordinates from V and the dimension of V
+ * #\tparam VC the container used to store value types (defaults to std::list)
+ * #\tparam NC the container used to store the nodes (defaults to std:list)
+ *
+ */
+template<class V, class S = RotatingSubdivision, class A = DefaultA/*, class VC, class NC*/>
 class kdtree
 {
 public:
     typedef typename Traits::real_type real_type;
-
-    typedef typename Traits::Container Container;
 
     typedef typename Traits::Splitter Splitter;
 
@@ -74,13 +78,19 @@ public:
 
     typedef std::list<Node> NodeContainer;
 
+    typedef std::list<value_type> DataContainer;
+
     typedef typename NodeContainer::iterator node_iterator;
 
     typedef typename Container<value_type>::iterator data_iterator;
 
     typedef typename Traits::NodeBase NodeBase; // TODO: maybe we can user SFINAE to fallback to the default implementation if the user does not define a NodeBase within his traits class?
 
-    struct BoundingBox {};
+    struct BoundingBox
+    {
+        real_type* _lower; // array holding the coordinates of the lower corner
+        real_type* _upper; // array holding the coordinates of the lower corner
+    };
 
     // a node is considered a leightweight, iterator like thing
     // it does not store user data, and gets constructed by the tree itself.
@@ -115,7 +125,7 @@ public:
             _data_begin(db),
             _data_end(de)
             {}
-            
+
         // const NodeBase& user_data() const { return static_cast<const NodeBase*>(this);}
 
         // each node splits space with a hyperplance that is perpendicular to its splitting dimension
@@ -148,8 +158,8 @@ protected:
     // one could also move this functionality into a traits class (e.g. treebuilder or similar) to allow kdtrees that user a completely different architecture
     // (e.g. for growing trees that do not require rebuild)
 
-    Container<value_type> _data;  // store all data in a linear container. likely a std::vector is usefull, because we need random access and swaping items
-    Container<Node>       _nodes; // store all nodes in a linear container. likely a std::list is usefull, because building the tree needs lots of insertions at arbitrary position
+    DataContainer<value_type> _data;  // store all data in a linear container. likely a std::vector is usefull, because we need random access and swaping items
+    NodeContainer<Node>       _nodes; // store all nodes in a linear container. likely a std::list is usefull, because building the tree needs lots of insertions at arbitrary position
     Splitter  _splitter;
     Coordinate _coordinate;   // instance of coordinate getter
     std::size_t _bucket_size; // how many data elements are allowed per leaf, TODO: put it into the traits class? then it can also be compile time constant
