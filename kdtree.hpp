@@ -70,13 +70,14 @@ struct DefaultA
 
 /*!
  * \tparam V the value type that is to be sorted into the tree
+ * \tparam NV data that is associated with nodes not leafes
  * \tparam S the splitting rule for subdivision of nodes
  * \tparam A an object that is capable to obtain coordinates from V and the dimension of V
  * #\tparam VC the container used to store value types (defaults to std::list)
  * #\tparam NC the container used to store the nodes (defaults to std:list)
  *
  */
-template<class V, class S = RotatingSubdivision, class A = DefaultA/*, class VC, class NC*/>
+template<class V, class NV, class S = RotatingSubdivision, class A = DefaultA/*, class VC, class NC*/>
 class kdtree
 {
 public:
@@ -95,8 +96,6 @@ public:
     typedef typename NodeContainer::iterator node_iterator;
 
     typedef typename Container<value_type>::iterator data_iterator;
-
-    typedef typename Traits::NodeBase NodeBase; // TODO: maybe we can user SFINAE to fallback to the default implementation if the user does not define a NodeBase within his traits class?
 
     struct BoundingBox
     {
@@ -118,6 +117,21 @@ public:
     // maybe we can clarify this by using private inheritance and a node data getter that returns a cast of this to
     // user data type (see specific commented lines)
     // struct Node : private Nodebase
+    
+    // provide access user node data
+    struct UserNodeBase {
+        // access data
+        const NV& data() const { }
+    };
+    
+    // do NOT provide access to user node data
+    struct NoUserNodeBase{};
+    
+    // choose base class type according to whether there is a user Node data or not
+    using NodeBase = std::conditional<std::is_same<NV,EmptyNode>::value>,NoUserNodeBase,UserNodeBase::type;
+    
+    // inherit from the correct Node Base, i.e. add a data member if NV is not the default value,
+    // otherwise inherit from NoUserNodeBase and use empty base class optimization
     struct Node : public NodeBase, public HyperPlane<real_type>
     {
         // defines the iterator range of data that is contained within this node an all of its children
@@ -137,8 +151,6 @@ public:
             _data_begin(db),
             _data_end(de)
             {}
-
-        // const NodeBase& user_data() const { return static_cast<const NodeBase*>(this);}
 
         // each node splits space with a hyperplance that is perpendicular to its splitting dimension
         // hence, the hyperplane is completly defined by the index of the dimension that is split
