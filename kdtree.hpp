@@ -118,7 +118,7 @@ public:
     // maybe we can clarify this by using private inheritance and a node data getter that returns a cast of this to
     // user data type (see specific commented lines)
     // struct Node : private Nodebase
-    struct Node : public NodeBase
+    struct Node : public NodeBase, public HyperPlane<real_type>
     {
         // defines the iterator range of data that is contained within this node an all of its children
         data_iterator _data_begin;
@@ -143,8 +143,13 @@ public:
         // each node splits space with a hyperplance that is perpendicular to its splitting dimension
         // hence, the hyperplane is completly defined by the index of the dimension that is split
         // and the coordinate of the plance wrt to this index.
-        std::size_t splitting_dimension() const;
-        real_type   splitting_position() const;
+        // TODO decide: access splitter information by base type? or provide direct access?
+        // std::size_t splitting_dimension() const;
+        // real_type   splitting_position() const;
+        const HyperPlane<real_type>& splitter() const
+        {
+            return static_cast<const HyperPlane<real_type>&>(*this);
+        }
 
          // iterate overall children
         boost::iterator_range<> nodes() const;
