@@ -202,6 +202,11 @@ public:
 
     // get the box that contains all data
     BoundingBox bounding_box() const;
+    
+    // moving a point will probably require a complete rebuild of the tree because
+    // we do not now if the old splitting is still consistent with the moved point(s)
+    // maybe we should not allow that at all...
+    void move_data(...);
 
     // access the tree for searching and other stuff
     Node& root();
