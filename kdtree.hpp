@@ -16,6 +16,18 @@ struct Splitter /*concept*/
 };
 
 /*!
+ * \bried Define the plane that splits space.
+ *        It holds only two variables: the dimension n the plane is perpendicular to
+ *        and the anchor point of the plane, i.e. the nth coordinate of a point on the plane.
+ */
+template<class real>
+struct HyperPlane
+{
+    std::size_t dimension; //<! which dimension is the plane perpendicular to
+    real        anchor;    //<! nth component of coordinate of a point on the plane
+};
+
+/*!
  * \brief Implementation of Splitter concept
  * Subdivide each cell into two equally sized cells, while rotating the dimension of the splitting hyperplance
  */
