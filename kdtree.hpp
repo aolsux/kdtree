@@ -205,16 +205,25 @@ public:
 
     // access the tree for searching and other stuff
     Node& root();
+    const Node& root() const;
 
     // iterate overall nodes, the order is given by the internal order of the node container,
     // i.e. first node will be the root, then the left subtree will be iterated (recursively)
     // last the right subtree will be iterated
-    boost::iterator_range<> nodes() const;
+    // TODO: it would be nice to have a range returned, but that would add dependency on boost :-/
+    //       maybe one can enable this feature with #ifdef if boost defines are available?!?
+    // boost::iterator_range<> nodes() const;
+    node_iterator node_begin() const;
+    node_iterator node_end() const;
 
     // iterate over data the order is again defined by the tree structure,
     // the left most data elements are first, then the leafes are iterated towards the rightmost leaf of the tree
-    boost::iterator_range<> data() const;
-
-
+    // TODO: it would be nice to have a range returned, but that would add dependency on boost :-/
+    //       maybe one can enable this feature with #ifdef if boost defines are available?!?
+    // boost::iterator_range<> data() const;
+    // TODO think about constness, obviously sometimes one will want to modify some of the contained data.
+    //      WARNING: modifying contained data, i.e. the datas location in space will invalidate the tree!
+    data_iterator data_begin() const;
+    data_iterator data_end() const;
 };
 
